@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Authenticating...</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <h3>Securely signing you in...</h3>
+  <script>
+    // 1. Initialize the Google Identity Services client
+    // Note: We use the 'postMessage' UX mode to talk to the parent window
+    window.onload = function() {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com',
+        scope: 'https://www.googleapis.com/auth/devstorage.read_only',
+        callback: (response) => {
+          // 2. When Google gives us the token, send it back to the Apps Script
+          if (response.access_token) {
+            // We verify the target origin to be safe
+            window.opener.postMessage({ type: 'AUTH_SUCCESS', token: response.access_token }, '*');
+            window.close();
+          }
+        },
+      });
+
+      // 3. Trigger the flow immediately
+      client.requestAccessToken();
+    };
+  </script>
+</body>
+</html>
