@@ -2,30 +2,55 @@
 <html>
 <head>
   <title>Authenticating...</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <h3>Securely signing you in...</h3>
+  
   <script>
-    // 1. Initialize the Google Identity Services client
-    // Note: We use the 'postMessage' UX mode to talk to the parent window
-    window.onload = function() {
-      const client = google.accounts.oauth2.initTokenClient({
-        client_id: '748213817542-7clbtdvbrodqfpekdac1bskp3deu3vls.apps.googleusercontent.com',
-        scope: 'https://www.googleapis.com/auth/devstorage.read_only',
-        callback: (response) => {
-          // 2. When Google gives us the token, send it back to the Apps Script
-          if (response.access_token) {
-            // We verify the target origin to be safe
-            window.opener.postMessage({ type: 'AUTH_SUCCESS', token: response.access_token }, '*');
-            window.close();
-          }
-        },
-      });
-
-      // 3. Trigger the flow immediately
-      client.requestAccessToken();
+    const CONFIG = {
+      CLIENT_ID: '748213817542-7clbtdvbrodqfpekdac1bskp3deu3vls.apps.googleusercontent.com',
+      REDIRECT_URI: 'https://presidiovideos.github.io/avb_gcs/relay.html',
+      SCOPE: 'https://www.googleapis.com/auth/devstorage.read_only'
     };
+
+    // Check if we are coming BACK from Google (Token in URL hash)
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      handleCallback(hash);
+    } else {
+      redirectToGoogle();
+    }
+
+    function redirectToGoogle() {
+      // Manually build the OAuth URL to reuse THIS window
+      const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth' +
+        '?client_id=' + encodeURIComponent(CONFIG.CLIENT_ID) +
+        '&redirect_uri=' + encodeURIComponent(CONFIG.REDIRECT_URI) +
+        '&response_type=token' + // Implicit Flow
+        '&scope=' + encodeURIComponent(CONFIG.SCOPE) +
+        '&include_granted_scopes=true' +
+        '&state=pass-through-value'; // Optional security state
+
+      // Go there immediately
+      window.location.href = authUrl;
+    }
+
+    function handleCallback(hash) {
+      // Parse the hash to find access_token
+      const params = new URLSearchParams(hash.substring(1)); // Remove the '#'
+      const token = params.get('access_token');
+      const error = params.get('error');
+
+      if (token) {
+        // Send token to parent (Apps Script)
+        if (window.opener) {
+          window.opener.postMessage({ type: 'AUTH_SUCCESS', token: token }, '*');
+        }
+        window.close(); // Success!
+      } else if (error) {
+        document.body.innerHTML = "Error: " + error;
+      }
+    }
   </script>
 </body>
 </html>
